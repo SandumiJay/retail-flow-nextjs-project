@@ -1,0 +1,14 @@
+ 
+
+ .modal-header-text{
+   font-size: 1rem;
+   font-weight: 600;
+ }
+ .image-preview{
+   width: 300px;
+   height:300px;
+   display: flex;
+   object-fit: contain;
+   align-items: center;
+   justify-content: center
+ }
