@@ -86,6 +86,7 @@ export default function POSPage() {
   const [maxQty, setMaxQty] = useState<number>(0);
   const modalRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState<any>([]);
+  const [invoiceID, setInvoiceID] = useState<string>("");
   let formatter = useDateFormatter({dateStyle: "full"});
 
   const handleAddToCart = () => {
@@ -129,15 +130,33 @@ export default function POSPage() {
     setCart((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
+    const isConfirmed = window.confirm("Are you sure you want to proceed with checkout?");
+  if (isConfirmed) {
+    // setCheckoutModalOpen(true);
+    handleConfirmCheckout();
+    
+  }
+    
+  };
+  
+  const handleCheckoutClose = () => {
+    
 
-    setCheckoutModalOpen(true);
+    setCheckoutModalOpen(false);
+    setContactNumber("");
+    setCustomerName("");
+    setCart([]);
+    setSearch("");
+    setSelectedProduct(null);
+
   };
 
   const handleConfirmCheckout = async () => {
     let response: AxiosResponse<any, any>;
     try {
       console.log(cart);
+      console.log(selectedCustomer);
       const updatePayload = cart.map((item) => ({
         sku: item.sku,
         quantity: item.quantity,
@@ -147,10 +166,12 @@ export default function POSPage() {
       response = await axios.put(API_ENPOINTS.UPDATE_INVENTORY, { products: updatePayload });
 
       alert("Checkout confirmed. Inventory updated successfully.");
-      setCart([]);
-      setCheckoutModalOpen(false);
-      setContactNumber("");
-      setCustomerName("");
+      const response_ =await saveInvoiceToDB(); 
+      console.log(response_);
+
+     
+      setCheckoutModalOpen(true);
+      
     } catch (error) {
       console.error("Error response:", error.response.data.message);
       alert("Failed to update inventory. Please try again." + error.response.data.message);
@@ -215,12 +236,27 @@ export default function POSPage() {
   };
 
   const calculateDiscountedPrice = (price: number, discount: number): number => {
-    return price - (price * (discount / 100));
+    return price - price * (discount / 100);
   };
-
+  
+  const netTotal = cart
+    .reduce((acc, item) => acc + (item.price ?? 0) * (item.quantity ?? 0), 0)
+    .toFixed(2);
+  
   const cartTotal = cart
-  .reduce((acc, item) => acc + (calculateDiscountedPrice(item.price ?? 0, item.discount ?? 0) * (item.quantity ?? 0)), 0)
-  .toFixed(2);
+    .reduce(
+      (acc, item) =>
+        acc + calculateDiscountedPrice(item.price ?? 0, item.discount ?? 0) * (item.quantity ?? 0),
+      0
+    )
+    .toFixed(2);
+  
+  // Convert netTotal and cartTotal to numbers for calculation
+  const Totaldiscount = parseFloat(netTotal) - parseFloat(cartTotal);
+  
+  console.log(`Net Total: $${netTotal}`);
+  console.log(`Cart Total: $${cartTotal}`);
+  console.log(`Discount: $${discount.toFixed(2)}`);
 
   const loadProducts = async () => {
     try {
@@ -299,8 +335,65 @@ export default function POSPage() {
     }
   };
 
+  const saveInvoiceToDB = async () => {
+    // Ensure all necessary details are available
+    if (!selectedCustomer) {
+      alert("Please select a customer.");
+      return;
+    }
   
+    if (cart.length === 0) {
+      alert("Cart is empty. Please add products to the cart.");
+      return;
+    }
+  
+    // Prepare the invoice payload
+    const invoicePayload = {
+      customer: {
+        code:selectedCustomer.code,
+        name: selectedCustomer.name,
+        contact: selectedCustomer.contact,
+        email: customerEmail,
+        address: selectedCustomer.address,
+        city: selectedCustomer.city,
+        country: selectedCustomer.country,
+      },
+      invoice: {
+        postDate: postDate.toString(),
+        dueDate: dueDate.toString(),
+        paymentMethod:paymentMethod,
+        totalAmount: parseFloat(cartTotal),
+        discountAmount: Totaldiscount,
+        netTotal: parseFloat(netTotal),
+      },
+      cartItems: cart.map((item) => ({
+        sku: item.sku,
+        name: item.productName,
+        quantity: item.quantity,
+        price: item.price,
+        discount: item.discount || 0,
+      })),
+    };
+  
+    try {
+      // Replace `API_ENDPOINTS.SAVE_INVOICE` with your actual API endpoint
+      console.log(invoicePayload)
+      const response = await axios.post(API_ENPOINTS.SAVE_INVOICE, invoicePayload);
+  
+      alert("Invoice saved successfully!");
+      console.log("Invoice Response:", response.data);
+      setInvoiceID(response.data.invoiceCode)
+  
+     
+    } catch (error) {
+      console.error("Error saving invoice:", error);
+      alert("Failed to save invoice. Please try again.");
+    }
+  };
 
+  const handlePaymentMethodChange = (e) => {
+    setPaymentMethod(e.target.value);
+  };
 
 
   useEffect(() => {
@@ -325,6 +418,8 @@ export default function POSPage() {
         </tr>`
     );
 
+    
+
     return `
     <style>
     body {
@@ -339,12 +434,12 @@ export default function POSPage() {
         margin: 40px auto;
         background-color: white;
         border-radius: 8px;
-        padding: 30px;
+        padding: 10px;
        
 
     .header {
         text-align: center;
-        color: #7209b7;
+        color: #68bbe3;
         font-size: 24px;
         font-weight: 700;
         margin-bottom: 20px;
@@ -407,7 +502,7 @@ export default function POSPage() {
 }
 
 .details th {
-    background-color: #7209b7;
+    background-color: #68bbe3;
     color: white;
     text-transform: uppercase;
 }
@@ -485,31 +580,33 @@ export default function POSPage() {
     <div class="contact-info">
         <p>No. 219, Nawana, Mirigama</p>
         <p>Tel: 077 898 929 | 0770 584 959 | 0772 898 929</p>
-    </div>
-
-    <div class="customer">
-        <table>
-            <tr>
-                <td><b>Invoice No:</b> INV-${new Date().getTime()}</td>
-                <td><b>Date:</b> ${postDate ? formatter.format(postDate.toDate(getLocalTimeZone())) : "--"}  | <b>Due On:</b> ${dueDate ? formatter.format(dueDate.toDate(getLocalTimeZone())) : "--"}</td>
-
-                </tr>
-            <tr>
-                <td><b>Brown & Company PLC</b>
-                <br>
-                Pharmacutical Division
+   </br>
+    <b>Brown & Company PLC - Pharmacutical Division
                 <br>
                 34, Sir Mohomed Macan Marker Mawatha
                 <br>
                 Colombo 03
                 <br>
-                Tel : 011 266 3000 
-                </td>
-                <td><b>Customer:</b> ${customerName} 
+                Tel : 011 266 3000 </b>
+ </div>
+    <div class="customer">
+        <table>
+            <tr>
+                <td style="border: none; padding: 5px;"><b>Invoice No:</b> ${invoiceID}</td>
+                <td style="border: none; padding: 5px;"><b>Date:</b> ${postDate ? formatter.format(postDate.toDate(getLocalTimeZone())) : "--"}  </td>
+
+                </tr>
+            <tr>
+                <td style="border: none; padding: 5px;">
+                <b>Customer:</b> ${customerName} 
                 <br>
                 <b>Contact Number:</b>${contactNumber}
                 <br>
                 <b>Address:</b> ${selectedCustomer?.address || "N/A"}
+                </td>
+                <td style="border: none; padding: 5px;">
+                
+                <b>Due On:</b> ${dueDate ? formatter.format(dueDate.toDate(getLocalTimeZone())) : "--"}
                 </td>
         
             </tr>
@@ -536,13 +633,21 @@ export default function POSPage() {
     <td style="padding: 5px;"> 
         <p>LKR ${cartTotal}</p>
     </tr>
+             <tr >
+    <td style="border: none; padding: 5px;"></td>
+    <td style="border: none; padding: 5px;"></td>
+    <td style="border: none; padding: 5px;"></td>
+    <td style="padding: 5px;"><b>Discount &emsp;&emsp;:</b> </td>
+    <td style="padding: 5px;"> 
+        <p>LKR ${Totaldiscount}</p></td>
+    </tr>
               <tr >
     <td style="border: none; padding: 5px;"></td>
     <td style="border: none; padding: 5px;"></td>
     <td style="border: none; padding: 5px;"></td>
     <td style="padding: 5px;"><b>Net Total &emsp;&emsp;:</b> </td>
     <td style="padding: 5px;"> 
-        <p>LKR ${cartTotal}</p></td>
+        <p>LKR ${netTotal}</p></td>
     </tr>
         </table>
 
@@ -568,178 +673,187 @@ export default function POSPage() {
 
   return (
     <>
-
-<div className="bg-gray-100 w-screen h-screen py-12">
-  <div className="grid mx-auto w-10/12 h-max px-6 py-12 gap-1 bg-white border-0 shadow-lg sm:rounded-3xl">
-    <label className="text-2xl font-bold mb-8">POS System</label>
-
-    {/* Main Flex Layout */}
-    <div className="flex flex-col md:flex-row gap-6">
-
-      {/* Left Section: Customer and Product Information */}
-      <div className="flex-1 space-y-6">
-
-        {/* Customer Information Section */}
-        <Card shadow="sm" className="flex flex-col gap-5 px-4 py-4">
-          <label className="px-4 text-lg">Search</label>
-          <Autocomplete
-            aria-label="customer-search"
-            className="px-4"
-            items={customerDataSet.map((customer) => {
-              const displayValue = `${customer.contact} ${customer.name}`;
-              return displayValue;
-            })}
-            value={search}
-            onInputChange={(val) => {
-              setSearch(val);
-              handleCustomerSelect(val);
-            }}
-            placeholder="Customer Name or Contact Number"
-          >
-            {customerDataSet.map((customer, index) => {
-              const displayValue = `${customer.contact} ${customer.name}`;
-              return (
-                <AutocompleteItem key={index} value={displayValue}>
-                  {displayValue}
-                </AutocompleteItem>
-              );
-            })}
-          </Autocomplete>
-
-          <div className="flex items-center gap-10 px-4">
-            <div className="flex flex-col">
-              <h5>Customer Name</h5>
-              <Input value={customerName} className="w-full max-w-screen-2xl" readOnly />
+      <div className="bg-gray-100 w-screen h-screen py-12 overflow-auto" >
+        <div className="mx-auto w-11/12 max-w-7xl bg-white border-0 shadow-lg sm:rounded-3xl px-4 py-6">
+          <label className="text-2xl font-bold mb-6 block text-center">POS System</label>
+  
+          {/* Main Layout: Responsive Flex */}
+          <div className="flex flex-col lg:flex-row gap-8">
+  
+            {/* Left Section: Customer and Product Information */}
+            <div className="flex-1 space-y-6">
+  
+              {/* Customer Information Section */}
+              <Card shadow="sm" className="flex flex-col gap-4 p-4">
+                <label className="text-lg font-semibold">Search</label>
+                <Autocomplete
+                  aria-label="customer-search"
+                  className="w-full"
+                  items={customerDataSet.map((customer) => `${customer.contact} ${customer.name}`)}
+                  value={search}
+                  onInputChange={(val) => {
+                    setSearch(val);
+                    handleCustomerSelect(val);
+                  }}
+                  placeholder="Customer Name or Contact Number"
+                >
+                  {customerDataSet.map((customer, index) => (
+                    <AutocompleteItem key={index} value={`${customer.contact} ${customer.name}`}>
+                      {`${customer.contact} ${customer.name}`}
+                    </AutocompleteItem>
+                  ))}
+                </Autocomplete>
+  
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="flex flex-col">
+                    <h5>Customer Name</h5>
+                    <Input value={customerName} readOnly />
+                  </div>
+                  <div className="flex flex-col">
+                    <h5>Contact Number</h5>
+                    <Input value={contactNumber} readOnly />
+                  </div>
+                  <div className="flex flex-col">
+                    <h5>Post Date</h5>
+                    <DatePicker value={postDate} onChange={setPostDate} placeholder="Select date" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h5>Due Date</h5>
+                    <DatePicker value={dueDate} onChange={setDueDate} placeholder="Select date" />
+                  </div>
+                </div>
+              </Card>
+  
+              {/* Product and Cart Section */}
+              <Card shadow="sm" className="flex flex-col gap-4 p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="flex flex-col">
+                    <h5>SKU</h5>
+                    <Autocomplete
+                      value={selectedProduct}
+                      items={productAutocompleteList}
+                      onInputChange={handleProductSelect}
+                    >
+                      {productAutocompleteList.map((item, index) => (
+                        <AutocompleteItem key={index} value={item}>
+                          {item}
+                        </AutocompleteItem>
+                      ))}
+                    </Autocomplete>
+                  </div>
+                  <div className="flex flex-col">
+                    <h5>Product Name</h5>
+                    <Input value={productName} readOnly />
+                  </div>
+                  <div className="flex flex-col">
+                    <h5>Quantity</h5>
+                    <Input
+                      type="number"
+                      value={quantity}
+                      onChange={(e) => {
+                        handleQtyChange(Number(e.target.value));
+                        setQuantity(Number(e.target.value));
+                      }}
+                      min={0}
+                      max={maxQty}
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <h5>Discount</h5>
+                    <Input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} min={0} />
+                  </div>
+                </div>
+  
+                <Button color="secondary" onClick={handleAddToCart} className="w-full">
+                  Add to Cart
+                </Button>
+  
+                {/* Cart Table */}
+                <div className="overflow-x-auto">
+                  <Table aria-label="Cart Table">
+                    <TableHeader>
+                      <TableColumn>SKU</TableColumn>
+                      <TableColumn>Product</TableColumn>
+                      <TableColumn>Quantity</TableColumn>
+                      <TableColumn>Discount</TableColumn>
+                      <TableColumn>Price</TableColumn>
+                      <TableColumn>Discounted Price</TableColumn>
+                      <TableColumn>Actions</TableColumn>
+                    </TableHeader>
+                    <TableBody>
+                      {cart.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{item.sku}</TableCell>
+                          <TableCell>{item.productName}</TableCell>
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell>{item.discount}%</TableCell>
+                          <TableCell>LKR {item.price.toFixed(2)}</TableCell>
+                          <TableCell>
+                            LKR {((item.price ?? 0) * (1 - (item.discount ?? 0) / 100) * (item.quantity ?? 0)).toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="light" color="danger" onClick={() => handleRemoveFromCart(index)}>
+                              Remove
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </Card>
             </div>
-            <div className="flex flex-col">
-              <h5>Contact Number</h5>
-              <Input value={contactNumber} className="w-full max-w-screen-2xl" readOnly />
-            </div>
-            <div className="flex flex-col">
-              <h5>Post Date</h5>
-              <DatePicker className="w-full max-w-screen-2xl" value={postDate} onChange={setPostDate} placeholder="Select date" />
-            </div>
-            <div className="flex flex-col">
-              <h5>Due Date</h5>
-              <DatePicker className="w-full max-w-screen-2xl" value={dueDate} onChange={setDueDate} placeholder="Select date" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Product and Cart Section */}
-        <Card shadow="sm" className="flex flex-col gap-5 px-4 py-4">
-          <div className="flex items-center gap-10 px-4">
-            <div className="flex flex-col">
-              <h5>SKU</h5>
-              <Autocomplete
-                // label="Select Product"
-                value={selectedProduct}
-                items={productAutocompleteList}
-                className="h-10"
-                onInputChange={handleProductSelect}
-              >
-                {productAutocompleteList.map((item, index) => (
-                  <AutocompleteItem key={index} value={item}>
-                    {item}
-                  </AutocompleteItem>
-                ))}
-              </Autocomplete>
-            </div>
-            <div className="flex flex-col">
-              <h5>Product Name</h5>
-              <Input value={productName} readOnly />
-            </div>
-            <div className="flex flex-col">
-              <h5>Quantity</h5>
-              <Input type="number" value={quantity} 
-              onChange={(e) => 
-               { handleQtyChange(Number(e.target.value));
-                setQuantity(Number(e.target.value))}} min={0} max={maxQty} />
-            </div>
-            <div className="flex flex-col">
-              <h5>Discount</h5>
-              <Input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} min={0} />
-            </div>
-          </div>
-          <Button color="secondary" onClick={handleAddToCart} className="w-full px-4">
-            Add to Cart
-          </Button>
-
-          {/* Cart Table */}
-          <Table aria-label="Cart Table">
-            <TableHeader>
-              <TableColumn>SKU</TableColumn>
-              <TableColumn>Product</TableColumn>
-              <TableColumn>Quantity</TableColumn>
-              <TableColumn>Discount</TableColumn>
-              <TableColumn>Price</TableColumn>
-              <TableColumn>Discounted Price</TableColumn>
-              <TableColumn>Actions</TableColumn>
-            </TableHeader>
-            <TableBody>
-              {cart.map((item, index) => (
-                <TableRow key={index}>
-                  <TableCell>{item.sku}</TableCell>
-                  <TableCell>{item.productName}</TableCell>
-                  <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.discount}%</TableCell>
-                  <TableCell>LKR {item.price.toFixed(2)}</TableCell>
-                  <TableCell>
-                    LKR {((item.price ?? 0) * (1 - (item.discount ?? 0) / 100) * (item.quantity ?? 0)).toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="light" color="danger" onClick={() => handleRemoveFromCart(index)}>
-                      Remove
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
-      </div>
-
-      {/* Right Section: Cart Summary */}
-      <div className="w-full md:w-1/3">
-        <Card shadow="sm" className="flex flex-col gap-5 px-4 py-4">
-          <h5 className="font-bold text-lg">Cart Summary</h5>
-          {cart.length === 0 && <h4>No items in cart</h4>}
-          <div>
-            <h4 className="font-bold">Total: LKR {cartTotal}</h4>
-            <Select
-              label="Payment Method"
-              selectedKeys={paymentMethod}
-              onSelectionChange={setPaymentMethod}
-            >
-              <SelectItem key="cash">Cash</SelectItem>
-              <SelectItem key="card">Card</SelectItem>
-              <SelectItem key="online">Online</SelectItem>
-            </Select>
-          </div>
-          <Button onClick={handleCheckout} color="secondary">
-            Checkout
-          </Button>
-        </Card>
-      </div>
-    </div>
-  </div>
+  
+            {/* Right Section: Cart Summary */}
+            <div className="w-full lg:w-1/3">
+              <Card shadow="sm" className="flex flex-col gap-4 p-4">
+                <h5 className="font-bold text-lg">Cart Summary</h5>
+                {cart.length === 0 && <h4>No items in cart</h4>}
+                <div>
+                <div className="grid grid-cols-2 gap-4 text-left py-4">
+  <h4 className="font-bold">Total:</h4>
+  <h4 > LKR {netTotal}</h4>
+  <h4 className="font-bold">Discount:</h4>
+  <h4 >LKR {Totaldiscount}</h4>
+  <h4 className="font-bold">Net Total: </h4>
+  <h4>LKR {cartTotal}</h4>
 </div>
- {/* Checkout Modal */}
- <Modal isOpen={checkoutModalOpen}
-      onClose={() => setCheckoutModalOpen(false)}
-      size= "xl">
+                  <Select
+                    label="Payment Method"
+                    selectedKeys={[paymentMethod]}
+                    onChange={handlePaymentMethodChange}
+                  >
+                    <SelectItem key="cash">Cash</SelectItem>
+                    <SelectItem key="card">Card</SelectItem>
+                    <SelectItem key="online">Online</SelectItem>
+                  </Select>
+                </div>
+                <Button onClick={handleCheckout} color="secondary" className="w-full">
+                  Checkout
+                </Button>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+  
+      {/* Checkout Modal */}
+      <Modal isOpen={checkoutModalOpen} onClose={() => setCheckoutModalOpen(false)} size="xl">
         <ModalContent>
-        <ModalHeader>
-          <h3 id="modal-title">Invoice</h3>
-        </ModalHeader>
-        <ModalBody>
-          <div ref={modalRef} dangerouslySetInnerHTML={{ __html: renderInvoiceTemplate() }} />
-        </ModalBody>
-        <ModalFooter>
-          <Button onClick={generatePDF} color="secondary" fullWidth>
-            Export as PDF
-          </Button>
-        </ModalFooter>
+          <ModalHeader>
+            <h3 id="modal-title">Invoice</h3>
+          </ModalHeader>
+          <ModalBody>
+            <div ref={modalRef} dangerouslySetInnerHTML={{ __html: renderInvoiceTemplate() }} />
+          </ModalBody>
+          <ModalFooter>
+            <Button onClick={generatePDF} color="secondary" fullWidth>
+              Export as PDF
+            </Button>
+            <Button onClick={handleCheckoutClose} color="default" fullWidth >
+              Close
+            </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
     </>

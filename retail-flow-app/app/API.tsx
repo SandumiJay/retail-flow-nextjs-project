@@ -32,7 +32,8 @@ const API_ENPOINTS =  {
     UPDATE_USER : `${BASE_URL}/api/update-user`,
     DELETE_USER : `${BASE_URL}/api/delete-user`,
     UPDATE_USER_STATUS : `${BASE_URL}/api/update-user-status`,
-    GET_USER_ROLE : `${BASE_URL}/api/get-user-role`
+    GET_USER_ROLE : `${BASE_URL}/api/get-user-role`,
+    SAVE_INVOICE : `${BASE_URL}/api/save-invoice`
 }
 
 

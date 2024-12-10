@@ -18,11 +18,14 @@ import {
   ModalFooter,
   useDisclosure,
   ModalContent,
+  Select,
+  SelectItem,
 } from "@nextui-org/react";
 import { IconX, IconEdit, IconTrashX } from "@tabler/icons-react";
 import API_ENPOINTS from "../API";
 import config from "../config";
 import { Group } from "@mantine/core";
+import { countries } from "../data/Countries";
 
 interface Customer {
   code: string;
@@ -175,10 +178,10 @@ export default function CustomerPage() {
 
   return (
     <div>
-      <div className="sticky top-0 overflow-hidden h-fit w-full items-center justify-between rounded-t-2xl bg-white px-4 pb-[20px] pt-4 shadow-2xl shadow-gray-100 dark:!bg-navy-700 dark:shadow-none">
+      <div className="sticky top-0 overflow-hidden h-fit w-full items-center justify-between rounded-t-2xl bg-white px-6 pb-[20px] pt-4 shadow-2xl shadow-gray-100 dark:!bg-navy-700 dark:shadow-none">
         <h1 className="text-3xl font-bold text-purple-800 dark:text-white">Customers</h1>
         <button
-          className="absolute top-4 right-0 linear rounded-[20px] bg-purple-400 px-4 py-2 text-base font-medium text-brand-500 transition duration-200 hover:bg-purple-500 active:bg-purple-500 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:active:bg-white/20"
+          className="absolute top-4 right-1 linear rounded-[20px] bg-purple-400 px-6 py-2 text-base font-medium text-brand-500 transition duration-200 hover:bg-purple-500 active:bg-purple-500 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:active:bg-white/20"
           onClick={() => {
             onOpen();
             handleAddCustomerModal();
@@ -236,7 +239,21 @@ export default function CustomerPage() {
             <Input label="Phone" name="contact" value={formValues.contact} onChange={handleInputChange} />
             <Input label="Address" name="address" value={formValues.address} onChange={handleInputChange} />
             <Input label="City" name="city" value={formValues.city} onChange={handleInputChange} />
-            <Input label="Country" name="country" value={formValues.country} onChange={handleInputChange} />
+            <Select
+              label="Country"
+              placeholder="select country"
+              defaultSelectedKeys={formValues.country}
+              items={countries}
+              onChange={(e) => setFormValues({ ...formValues, country: e.target.value })}
+              className="flex flex-col gap-1 pb-4"
+            >
+                   {countries.map((country) => (
+        <SelectItem key={country.value}>
+          {country.label}
+        </SelectItem>
+      ))}
+                </Select>
+            {/* <Input label="Country" name="country" value={formValues.country} onChange={handleInputChange} /> */}
           </ModalBody>
           <ModalFooter>
             <Button onClick={() => handleCustomerAdd(formValues)}>Save</Button>
@@ -280,15 +297,23 @@ export default function CustomerPage() {
         value={formValues.city}
         onChange={handleInputChange}
       />
-      <Input
-        label="Country"
-        name="country"
-        value={formValues.country}
-        onChange={handleInputChange}
-      />
+     <Select
+              label="Country"
+              placeholder="select country"
+              defaultSelectedKeys={[formValues.country]}
+              items={countries}
+              onChange={(e) => setFormValues({ ...formValues, country: e.target.value })}
+              className="flex flex-col gap-1 pb-4"
+            >
+                   {countries.map((country) => (
+        <SelectItem key={country.value}>
+          {country.label}
+        </SelectItem>
+      ))}
+                </Select>
     </ModalBody>
     <ModalFooter>
-      <Button onClick={handleUpdateCustomer} color="primary">
+      <Button onClick={handleUpdateCustomer} color="default">
         Update
       </Button>
       <Button color="secondary" onClick={() => setViewEditItem(false)}>

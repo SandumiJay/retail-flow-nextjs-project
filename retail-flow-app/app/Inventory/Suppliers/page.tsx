@@ -336,7 +336,7 @@ export default function SuppliersPage() {
             <Select
               label="Country"
               placeholder="select country"
-              defaultSelectedKeys={formValues.country}
+              defaultSelectedKeys={[formValues.country]}
               items={countries}
               onChange={(e) => setFormValues({ ...formValues, country: e.target.value })}
               className="flex flex-col gap-1 pb-4"
@@ -350,7 +350,7 @@ export default function SuppliersPage() {
 
           </div>
           <Button type="submit">Update</Button>
-          <Button onClick={() => setViewEditItem(false)} color="secondary">Close</Button>
+          <Button onClick={() => setViewEditItem(false)} color="default">Close</Button>
         </form>
         </ModalBody>
         </ModalContent>

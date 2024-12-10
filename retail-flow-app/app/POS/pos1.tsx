@@ -155,6 +155,8 @@ const POS1: React.FC = () => {
   };
 
   const handleCheckout = () => {
+    
+
     setCheckoutModalOpen(true);
   };
 
