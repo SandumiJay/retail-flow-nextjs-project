@@ -631,7 +631,7 @@ export default function POSPage() {
     <td style="border: none; padding: 5px;"></td>
     <td style="padding: 5px;"><b>Gross Total &emsp;:</b> </td>
     <td style="padding: 5px;"> 
-        <p>LKR ${cartTotal}</p>
+        <p>LKR ${Number(cartTotal).toFixed(2)}</p>
     </tr>
              <tr >
     <td style="border: none; padding: 5px;"></td>
@@ -639,7 +639,7 @@ export default function POSPage() {
     <td style="border: none; padding: 5px;"></td>
     <td style="padding: 5px;"><b>Discount &emsp;&emsp;:</b> </td>
     <td style="padding: 5px;"> 
-        <p>LKR ${Totaldiscount}</p></td>
+        <p>LKR ${Number(Totaldiscount).toFixed(2)}</p></td>
     </tr>
               <tr >
     <td style="border: none; padding: 5px;"></td>
@@ -647,7 +647,7 @@ export default function POSPage() {
     <td style="border: none; padding: 5px;"></td>
     <td style="padding: 5px;"><b>Net Total &emsp;&emsp;:</b> </td>
     <td style="padding: 5px;"> 
-        <p>LKR ${netTotal}</p></td>
+        <p>LKR ${Number(netTotal).toFixed(2)}</p></td>
     </tr>
         </table>
 
@@ -812,11 +812,11 @@ export default function POSPage() {
                 <div>
                 <div className="grid grid-cols-2 gap-4 text-left py-4">
   <h4 className="font-bold">Total:</h4>
-  <h4 > LKR {netTotal}</h4>
+  <h4 > LKR {Number(netTotal).toFixed(2)}</h4>
   <h4 className="font-bold">Discount:</h4>
-  <h4 >LKR {Totaldiscount}</h4>
+  <h4 >LKR {Number(Totaldiscount).toFixed(2)}</h4>
   <h4 className="font-bold">Net Total: </h4>
-  <h4>LKR {cartTotal}</h4>
+  <h4>LKR {Number(cartTotal).toFixed(2)}</h4>
 </div>
                   <Select
                     label="Payment Method"
